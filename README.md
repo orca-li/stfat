@@ -8,3 +8,50 @@
                                                  
 ```
 <u><b>stfat</b></u> is a FAT32 filesystem driver for STM32 microcontrollers.
+
+# 1. Создание файловой системы на stm32
+## 1.1. Создание fat32
+
+Вручную писать код для того, чтобы создать файловую систему fat32 нету смысла, т.к. уже существуют утилиты для этого. Вы можете просто создать файловую систему нужного вам размера и прошить её по нужному вам адресу в stm32. После чего вы можете начать ею пользоваться.
+```bash
+# ArchLinux
+sudo truncate --size 128K fat32.img
+hexdump -C fat32.img
+sudo mkfs.vfat -F 32 -s 1 fat32.img
+hexdump -C fat32.img
+```
+
+## 1.2. Проверка файловой системы
+
+Далее вы можете убедиться, что ваша файловая система работает. 
+```bash
+# ArchLinux
+mkdir /tmp/stfat
+sudo mount -o loop fat32.img /tmp/stfat
+lsblk -f
+```
+Далее мы можем проделать следующий эксперимент. Мы можем копировать пустую файловую систему, затем создать файл hello world, и через утилиту diff посмотреть изменения.
+```bash
+# ArchLinux
+cp fat32.img void.img
+sudo echo "Hello World!" > /tmp/stfat/hello.txt
+ls /tmp/stfat
+mkdir d.diff
+hexdump -C fat32.img > d.diff/hello.img
+hexdump -C void.img > d.diff/void.img
+diff d.diff/void.img d.diff/hello.img > d.diff/return.diff
+nl d.diff/return.diff
+```
+Мы видим, что наша файловая система работает. В принципе можно проводить самые разнообразные эксперименты, это вы можете делать сами.
+
+## 1.3. Прошивка файловой системы
+
+В принципе вы можете объединять вашу файловую систему с вашей операционной системой или загружать её отдельно. Цель этого репозитория научиться поднимать драйвер файловой системы, а не писать операционную систему. Поэтому в рамках этого репозитория достаточно прошить по нужному адресу этот бинарник и запустить драйвер. Но этот драйвер можно запустить и на персональном компьютере.
+```bash
+sudo stm32flash -w stfat.img -v -g 0x[address] /dev/ttyUSB0
+```
+Адрес я бы высчитывал по такой формуле:
+```c
+#define INDEX_OFFSET 1
+// address = flash_size - stfat_size - INDEX_OFFSET
+```
